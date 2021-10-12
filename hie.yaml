@@ -1,0 +1,85 @@
+cradle:
+  stack:
+    - path: "./src"
+      component: "twentyone:lib"
+
+    - path: "./dynamictournament/Main.hs"
+      component: "twentyone:exe:dynamictournament"
+
+    - path: "./dynamictournament/Control.Concurrent.Actor.hs"
+      component: "twentyone:exe:dynamictournament"
+
+    - path: "./dynamictournament/Entries.hs"
+      component: "twentyone:exe:dynamictournament"
+
+    - path: "./dynamictournament/Game.hs"
+      component: "twentyone:exe:dynamictournament"
+
+    - path: "./dynamictournament/Load.hs"
+      component: "twentyone:exe:dynamictournament"
+
+    - path: "./dynamictournament/Logs.hs"
+      component: "twentyone:exe:dynamictournament"
+
+    - path: "./dynamictournament/Watcher.hs"
+      component: "twentyone:exe:dynamictournament"
+
+    - path: "./dynamictournament/Paths_twentyone.hs"
+      component: "twentyone:exe:dynamictournament"
+
+    - path: "./staticgame/Main.hs"
+      component: "twentyone:exe:staticgame"
+
+    - path: "./submission/Main.hs"
+      component: "twentyone:exe:staticgame"
+
+    - path: "./staticgame/AlwaysHit.hs"
+      component: "twentyone:exe:staticgame"
+
+    - path: "./staticgame/AlwaysStand.hs"
+      component: "twentyone:exe:staticgame"
+
+    - path: "./staticgame/BasicNick.hs"
+      component: "twentyone:exe:staticgame"
+
+    - path: "./staticgame/CountingNick.hs"
+      component: "twentyone:exe:staticgame"
+
+    - path: "./staticgame/Player.hs"
+      component: "twentyone:exe:staticgame"
+
+    - path: "./staticgame/Rhys.hs"
+      component: "twentyone:exe:staticgame"
+
+    - path: "./staticgame/Paths_twentyone.hs"
+      component: "twentyone:exe:staticgame"
+
+    - path: "./submission/AlwaysHit.hs"
+      component: "twentyone:exe:staticgame"
+
+    - path: "./submission/AlwaysStand.hs"
+      component: "twentyone:exe:staticgame"
+
+    - path: "./submission/BasicNick.hs"
+      component: "twentyone:exe:staticgame"
+
+    - path: "./submission/CountingNick.hs"
+      component: "twentyone:exe:staticgame"
+
+    - path: "./submission/Player.hs"
+      component: "twentyone:exe:staticgame"
+
+    - path: "./submission/Rhys.hs"
+      component: "twentyone:exe:staticgame"
+
+    - path: "./submission/Paths_twentyone.hs"
+      component: "twentyone:exe:staticgame"
+
+    - path: "./test_doctest"
+      component: "twentyone:test:doctest"
+
+    - path: "./test"
+      component: "twentyone:test:twentyone-test"
+
+    - path: "./submission"
+      component: "twentyone:test:twentyone-test"

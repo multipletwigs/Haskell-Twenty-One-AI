@@ -1,0 +1,74 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.34.4.
+--
+-- see: https://github.com/sol/hpack
+
+name:           twentyone
+version:        0.1.0.0
+author:         Tim Dwyer, Arthur Mahéo, Rhys Newbury and Nick Wang
+maintainer:     Tim Dwyer, Arthur Mahéo, Rhys Newbury and Nick Wang
+copyright:      2021 Tim Dwyer, Arthur Mahéo, Rhys Newbury and Nick Wang
+license:        BSD3
+build-type:     Simple
+
+library
+  exposed-modules:
+      Cards
+      Deck
+      EitherIO
+      Parser.Instances
+      Parser.Parser
+      TwentyOne.Play
+      TwentyOne.Rules
+      TwentyOne.Types
+      Utils
+  other-modules:
+      Paths_twentyone
+  hs-source-dirs:
+      src
+  default-extensions:
+      Trustworthy
+      NamedFieldPuns
+  build-depends:
+      base >=4.7 && <5
+    , bytestring
+    , cassava
+    , containers
+    , deepseq
+    , directory
+    , filepath
+    , mtl
+    , random
+    , time
+    , utility-ht
+    , vector
+  default-language: Haskell2010
+
+executable staticgame
+  main-is: Main.hs
+  other-modules:
+      Player
+      Paths_twentyone
+  hs-source-dirs:
+      staticgame
+      submission
+  default-extensions:
+      Trustworthy
+      NamedFieldPuns
+  ghc-options: -Wall -Wno-trustworthy-safe -Wno-orphans -Wno-unused-imports
+  build-depends:
+      base >=4.7 && <5
+    , bytestring
+    , cassava
+    , containers
+    , deepseq
+    , directory
+    , filepath
+    , mtl
+    , random
+    , time
+    , twentyone
+    , utility-ht
+    , vector
+  default-language: Haskell2010

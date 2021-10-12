@@ -1,0 +1,48 @@
+name: twentyone
+version: 0.1.0.0
+license: BSD3
+author: "Tim Dwyer, Arthur Mahéo, Rhys Newbury and Nick Wang"
+copyright: "2021 Tim Dwyer, Arthur Mahéo, Rhys Newbury and Nick Wang"
+
+extra-source-files: []
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+dependencies:
+  - base >= 4.7 && < 5
+  - random
+  - mtl
+  - cassava
+  - bytestring
+  - vector
+  - time
+  - filepath
+  - directory
+  - utility-ht
+  - containers
+  - deepseq
+
+library:
+  source-dirs: src
+  default-extensions:
+    - Trustworthy
+    - NamedFieldPuns
+
+executables:
+  staticgame:
+    main: Main.hs
+    source-dirs:
+      - staticgame
+      - submission
+    ghc-options:
+      - -Wall
+      - -Wno-trustworthy-safe
+      - -Wno-orphans
+      - -Wno-unused-imports
+    dependencies:
+      - twentyone
+    default-extensions:
+      - Trustworthy
+      - NamedFieldPuns
