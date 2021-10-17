@@ -60,35 +60,33 @@ updatePoints :: Int -> GamePoints -> HandPoints -> GamePoints
 updatePoints count (GamePoints p c) h
     | (not . isBankrupt) c && getPoints h == 0 = GamePoints p (Bankrupt count)
     | otherwise = case c of
-    Rich 0 -> GamePoints p (Bankrupt count)
-    Rich _ -> GamePoints p (Rich $ getPoints h)
-    b      -> GamePoints p b
+        Rich 0 -> GamePoints p (Bankrupt count)
+        Rich _ -> GamePoints p (Rich $ getPoints h)
+        b      -> GamePoints p b
 
 
 -- | Shuffle a deck then start the game, keep track of the score.
 playRound :: GameResult -> EitherIO GameError GameResult
 playRound gp@(GameResult previous results players shuffledDeck) = do
     -- Lift and then extract deck
-    newDeck                     <- liftIO shuffledDeck
+    newDeck                              <- liftIO shuffledDeck
 
-    (results', tricked, upCard) <- playHand newDeck prevTrick results
-
-    let hp    = handPoints results'
-        count = length $ filter (isBankrupt . finalPoints) results
+    (results', tricked, upCard, stocked) <- playHand newDeck prevTrick results
 
     -- Replace point values of 0 with Bankrupt
-    let cardsPlayed = sum $ min 2 . length . finalHand . nodeValue <$> tricked
-        newGP       = zipWith (updatePoints count)
-                              (sortOn getId results)
-                              (sortOn getId hp)
+    let hp    = handPoints results'
+        count = length $ filter (isBankrupt . finalPoints) results
+        newGP = zipWith (updatePoints count)
+                        (sortOn getId results)
+                        (sortOn getId hp)
 
-        newGP'       = sortAlong getId (getId <$> results) newGP
-       
+    -- Restore ordering
+    let newGP' = sortAlong getId (getId <$> results) newGP
 
     return $ GameResult (HandResult tricked hp : previous)
                         newGP'
                         players
-                        (drop cardsPlayed <$> shuffledDeck)
+                        (pure stocked)
   where
     (prevTrick, _) = case previous of
         []    -> ([], [])
@@ -131,8 +129,8 @@ playBids
 playBids prev stock rich = foldl f' (pure ([], stock, rich))
   where
     f' r p = do
-        (t, _, gp) <- r
-        playCards Nothing gp [] prev t (PlayerHand p []) 0
+        (t, s, gp) <- r
+        playCards Nothing gp s prev t (PlayerHand p []) 0
 
 combinePoints :: [HandPoints] -> [GamePoints] -> [Points]
 combinePoints handPoints newGP = zipWith (+) finalPoints sortedGP
@@ -141,7 +139,7 @@ combinePoints handPoints newGP = zipWith (+) finalPoints sortedGP
     finalPoints = sum <$> (getPoints <$$> groups)
     sortedGP    = getPoints <$> sortOn getId newGP
 
-evaluatePlays :: [PlayNode] -> Stock -> Hand -> IO ([HandPoints], PlayNode)
+evaluatePlays :: Trick -> Stock -> Hand -> IO ([HandPoints], PlayNode, Stock)
 evaluatePlays tricked stock dealerCards = do
     -- Get only the player hands
     let playerPlays  = filter (not . isInsurance . act) (nodeValue <$> tricked)
@@ -151,13 +149,14 @@ evaluatePlays tricked stock dealerCards = do
 
     -- Play dealer
     let noPlayResult = noPlayDealer stock dealerCards
-    (dealerValues, _, dealerTrick) <- if all isBust phv
+
+    (dealerValues, stock', dealerTrick) <- if all isBust phv
         then pure noPlayResult
         else playDealerHand stock dealerCards
 
     let finalPoints = calculatePoints (nodeValue <$> tricked) dealerValues
 
-    return (finalPoints, dealerTrick)
+    return (finalPoints, dealerTrick, stock')
 
 calculatePoints :: [Play] -> HandValue -> [HandPoints]
 calculatePoints plays dvalue = zipWith HandPoints points ids
@@ -171,7 +170,7 @@ playHand
     :: [Card]
     -> Trick
     -> [GamePoints]
-    -> EitherIO GameError (HandResult, Trick, Card)
+    -> EitherIO GameError (HandResult, Trick, Card, Stock)
 playHand deck prev scores = do
     -- Deal cards, with shuffling
     (dealt, stock) <- liftIO
@@ -194,7 +193,7 @@ playHand deck prev scores = do
         bidTrick
         bidGP
 
-    (handPoints, dealerTrick) <- liftIO
+    (handPoints, dealerTrick, stock''') <- liftIO
         $ evaluatePlays tricked stock'' dealerCards
 
     -- Combine players
@@ -205,7 +204,7 @@ playHand deck prev scores = do
         players        = nonZeroPlayers ++ zeroPlayers
         results        = HandResult tricked players
 
-    return (results, dealerTrick : tricked, head dealerCards)
+    return (results, dealerTrick : tricked, head dealerCards, stock''')
 
 
 -- | Play out a round one hand at a time until everyone either busts, stands, or has TwentyOne.
@@ -217,7 +216,6 @@ playTricks
     -> Trick          -- Current trick
     -> [GamePoints]   -- Current players' points
     -> EitherIO GameError (Trick, [GamePoints], Stock) -- New Trick, New Scores, Updated Stock Pile
--- playTricks ps [] _ _ _      _      = error "Stock cannot be empty"
 playTricks [] stock _ _ tricks points = return (tricks, points, stock)
 playTricks (hand : otherHands) stock dealersHands prev current scores
     |
@@ -252,7 +250,7 @@ playAction
     :: Maybe Card
     -> PlayerHand
     -> [GamePoints]
-    -> [PlayNode]
+    -> Trick
     -> Trick
     -> EitherIO GameError (Action, String)
 playAction upCard hand scores prev current = do
@@ -260,7 +258,7 @@ playAction upCard hand scores prev current = do
 
     -- Process information for player
     let playerPoints = gamePointsToPlayerPoints <$> scores
-        infos        = nodeToInfo <$> combineLatest prev current
+        infos        = combineWith (playToInfo . nodeValue) current prev
         userMemory   = (firstJust `on` getMemory pid) current prev
 
     -- Execute user function

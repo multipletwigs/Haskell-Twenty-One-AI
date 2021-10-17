@@ -15,7 +15,6 @@ import           Utils
 numDecks :: Int
 numDecks = 3
 
--- TODO: don't hardcode numPlayers
 numPlayers :: Int
 numPlayers = 10
 

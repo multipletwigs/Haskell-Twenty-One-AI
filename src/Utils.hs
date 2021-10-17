@@ -34,15 +34,24 @@ update x l | x `elem` l = map' (x ==) (const x) l
 map' :: Eq a => (a -> Bool) -> (a -> a) -> [a] -> [a]
 map' p f = map (\y -> if p y then f y else y)
 
--- | Keep values of first list and add values of second list which do not exist in first.
+-- | Union but does not remove duplicates in second list
 --
--- >>> combineLatest [1..3] [1..5]
+-- >>> combine [1,2,3] [5,5,6]
+-- [1,2,3,5,5,6]
+--
+-- >>> combine [5,5,6] [1,2,3]
+-- [5,5,6,1,2,3]
+--
+-- >>> combine [1..3] [1..5]
 -- [1,2,3,4,5]
---
--- >>> combineLatest [1..10] [1..5]
--- [1,2,3,4,5,6,7,8,9,10]
-combineLatest :: Eq a => [a] -> [a] -> [a]
-combineLatest l1 l2 = l2 ++ (l1 \\ l2)
+combine :: Eq a => [a] -> [a] -> [a]
+combine xs ys = xs ++ filter (`notElem` xs) ys
+
+combineOn :: Eq b => (a -> [b]) -> a -> a -> [b]
+combineOn f = combine `on` f
+
+combineWith :: Eq b => (a -> b) -> [a] -> [a] -> [b]
+combineWith f = combineOn (f <$>)
 
 -- | Left-biased choice on @Maybe@
 firstJust :: Maybe a -> Maybe a -> Maybe a
@@ -52,7 +61,6 @@ firstJust _        y = y
 minus :: Num a => a -> a -> a
 minus = (-)
 
-sortAlong :: Eq c => (b->c) -> [c] -> [b] -> [b]
+sortAlong :: Eq c => (b -> c) -> [c] -> [b] -> [b]
 sortAlong f order = map snd . sortOn fst . map (\x -> (lookup (f x) z, x))
-    where
-    z = zip order [0..]
+    where z = zip order [0 ..]

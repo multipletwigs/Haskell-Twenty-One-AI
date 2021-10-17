@@ -14,7 +14,7 @@ import           Control.Monad
 
 import safe      Player
 
--- This sets up a tournament with two instances of your player playing against
+-- This sets up a tournament with instances of your player playing against
 -- each other.  You can run different players against each other, but you'll
 -- need to change the Module names of those players (don't forget to change the
 -- module name back to "Player" when you submit your code)
@@ -121,5 +121,5 @@ mainSingle = do
         Left e -> print e
 
 main :: IO ()
--- main = mainMultiple 10
-main = mainSingle
+main = mainMultiple 100
+-- main = mainSingle

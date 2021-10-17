@@ -12,13 +12,17 @@ import           TwentyOne.Rules    -- Rules of the game
 -- You can add more imports if you need them
 
 -- | This function is called once it's your turn, and keeps getting called until your turn ends.
+-- | This function is called once it's your turn, and keeps getting called until your turn ends.
 playCard :: PlayFunc
-playCard dealerCard pPoints pInfo myID myMem myCards = 
-    playStrat dealerCard myMem myCards
+playCard dCard p pinf pid myMem hand
+   -- trace ("dCard: " ++ show dCard ++  "pid= " ++ show pid ++ " pinfo: " ++ show pinf ++ " hand: " ++ show hand ++ " memory: " ++ show myMem) False = undefined
+    |otherwise = playStrat dCard myMem hand 
+    
 
 playStrat :: Maybe Card -> Maybe String -> Hand -> (Action, String)
-playStrat Nothing _ _ = (Bid maxBid, "")
-playStrat (Just dealerCard) (Just myMem) myCards
-    | (handCalc myCards) > 17 = (Stand, "")
-    | (getRank dealerCard) == Ace = (Insurance 50, "")
-    | otherwise = (Hit, "") 
+playStrat Nothing (Just myMem) _ = (Bid maxBid, myMem ++ "B")
+playStrat (Just dealerCard) (Just (x:myMem)) myCards
+    | (handCalc myCards) > 17 = (Stand, x:myMem ++ "S")
+    | length myCards == 2 = (DoubleDown 200, x:myMem ++ "D")
+    | (Ace == getRank dealerCard) && (x /= 'B') = (Insurance 50, x:myMem ++ "I")
+    | otherwise = (Hit, x:myMem ++ "H") 

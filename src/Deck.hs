@@ -75,6 +75,13 @@ dealContinuous decksUsed n m deck = do
 --
 -- >>> length . fst <$> takeContinuous 3 100 sortedDeck
 -- 100
+--
+-- >>> sumDeck = sum . (fromEnum . getRank <$>)
+-- >>> liftM2 (==) (sumDeck . fst <$> (shuffledDecks 3 >>= takeContinuous 3 (52*3))) (sumDeck <$> shuffledDecks 3)
+-- True
+--
+-- >>> length . snd <$> (shuffledDecks 3 >>= takeContinuous 3 (52*3))
+-- 156
 takeContinuous :: Int -> Int -> [Card] -> IO ([Card], [Card])
 takeContinuous decksUsed n cards = do
     (c, d) <- dealContinuous decksUsed n 1 cards
@@ -88,5 +95,13 @@ shuffleList l = do
     i <- replicateM (length l) (randomIO :: IO Int)
     return $ map snd $ sortOn fst $ zip i l
 
+-- |
+-- >>> sumDeck = sum . (fromEnum . getRank <$>)
+--
+-- >>> (== sumDeck sortedDeck) . sumDeck <$> (shuffledDecks 1)
+-- True
+--
+-- >>> (== sumDeck (sortedDeck ++ sortedDeck)) . sumDeck <$> (shuffledDecks 2)
+-- True
 shuffledDecks :: Int -> IO [Card]
 shuffledDecks = shuffleList . (sortedDeck >>=) . replicate

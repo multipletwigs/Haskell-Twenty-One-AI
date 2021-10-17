@@ -29,12 +29,12 @@ version :: Version
 version = Version [0,1,0,0] []
 bindir, libdir, dynlibdir, datadir, libexecdir, sysconfdir :: FilePath
 
-bindir     = "C:\\Users\\US\\Desktop\\Work Stuff\\Year 2\\FIT2102 Assignment 2\\.stack-work\\install\\b7632f42\\bin"
-libdir     = "C:\\Users\\US\\Desktop\\Work Stuff\\Year 2\\FIT2102 Assignment 2\\.stack-work\\install\\b7632f42\\lib\\x86_64-windows-ghc-8.10.3\\twentyone-0.1.0.0-5AZpwtyjgn1BoTFmYjrbhL"
-dynlibdir  = "C:\\Users\\US\\Desktop\\Work Stuff\\Year 2\\FIT2102 Assignment 2\\.stack-work\\install\\b7632f42\\lib\\x86_64-windows-ghc-8.10.3"
-datadir    = "C:\\Users\\US\\Desktop\\Work Stuff\\Year 2\\FIT2102 Assignment 2\\.stack-work\\install\\b7632f42\\share\\x86_64-windows-ghc-8.10.3\\twentyone-0.1.0.0"
-libexecdir = "C:\\Users\\US\\Desktop\\Work Stuff\\Year 2\\FIT2102 Assignment 2\\.stack-work\\install\\b7632f42\\libexec\\x86_64-windows-ghc-8.10.3\\twentyone-0.1.0.0"
-sysconfdir = "C:\\Users\\US\\Desktop\\Work Stuff\\Year 2\\FIT2102 Assignment 2\\.stack-work\\install\\b7632f42\\etc"
+bindir     = "C:\\Users\\US\\Desktop\\Work Stuff\\Year 2\\FIT2102-Assignment-2\\.stack-work\\install\\b7632f42\\bin"
+libdir     = "C:\\Users\\US\\Desktop\\Work Stuff\\Year 2\\FIT2102-Assignment-2\\.stack-work\\install\\b7632f42\\lib\\x86_64-windows-ghc-8.10.3\\twentyone-0.1.0.0-5AZpwtyjgn1BoTFmYjrbhL"
+dynlibdir  = "C:\\Users\\US\\Desktop\\Work Stuff\\Year 2\\FIT2102-Assignment-2\\.stack-work\\install\\b7632f42\\lib\\x86_64-windows-ghc-8.10.3"
+datadir    = "C:\\Users\\US\\Desktop\\Work Stuff\\Year 2\\FIT2102-Assignment-2\\.stack-work\\install\\b7632f42\\share\\x86_64-windows-ghc-8.10.3\\twentyone-0.1.0.0"
+libexecdir = "C:\\Users\\US\\Desktop\\Work Stuff\\Year 2\\FIT2102-Assignment-2\\.stack-work\\install\\b7632f42\\libexec\\x86_64-windows-ghc-8.10.3\\twentyone-0.1.0.0"
+sysconfdir = "C:\\Users\\US\\Desktop\\Work Stuff\\Year 2\\FIT2102-Assignment-2\\.stack-work\\install\\b7632f42\\etc"
 
 getBinDir, getLibDir, getDynLibDir, getDataDir, getLibexecDir, getSysconfDir :: IO FilePath
 getBinDir = catchIO (getEnv "twentyone_bindir") (\_ -> return bindir)

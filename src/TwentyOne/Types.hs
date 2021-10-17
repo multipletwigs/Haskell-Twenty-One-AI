@@ -68,6 +68,9 @@ data PlayerInfo = PlayerInfo {
     playerInfoHand :: Hand
 }
 
+instance Eq PlayerInfo where
+    (==) = (==) `on` getId
+
 instance Identify PlayerInfo where
     getId = _playerInfoId
 
@@ -303,10 +306,10 @@ instance Show HandValue where
 -}
 
 gamePointsToPlayerPoints :: GamePoints -> PlayerPoints
-gamePointsToPlayerPoints gp = PlayerPoints (getId gp) (getPoints gp)
+gamePointsToPlayerPoints = liftM2 PlayerPoints getId getPoints
 
-nodeToInfo :: PlayNode -> PlayerInfo
-nodeToInfo = liftM2 PlayerInfo getId finalHand . nodeValue
+playToInfo :: Play -> PlayerInfo
+playToInfo = liftM2 PlayerInfo getId finalHand
 
 {-
     Boolean functions
