@@ -74,49 +74,4 @@ chain p op = p >>= rest
             )
             ||| pure a
             
--- | Parses the suit of the card
--- >>> parse parseCardSuit "HT"
--- Result >T< "H"
---
--- >>> parse parseCardSuit "S2"
--- Result >2< "S"
---
--- >>> parse parseCardSuit "D9"
--- Result >9< "D"
 
-parseCardSuit :: Parser Char
-parseCardSuit = is 'S' ||| is 'H' ||| is 'D' ||| is 'C'
-
--- | Parses a value of a card
--- >>> parse parseCardValue "1"
--- Result >< "1"
-parseCardRank :: Parser Char
-parseCardRank = is '1' ||| is '2' ||| is '3' ||| 
-                 is '4' ||| is '5' ||| is '6' ||| 
-                 is '7' ||| is '8' ||| is '9' ||| 
-                 is 'T' ||| is 'J' ||| is 'K' ||| is 'Q'
-
--- | Parses a card 
--- >>> parse parseOnlyRank "HT"
--- Result >< "T"
---
--- >>> parse parseOnlyRank "H2"
--- Result >< "2"
---
--- >>> parse parseOnlyRank "DK"
--- Result >< "K"
-parseOnlyRank :: Parser Char
-parseOnlyRank = parseCardSuit >> parseCardRank
-
-list :: Parser a -> Parser [a]
-list p1 = list1 p1 ||| pure []
-list1 p = p >>= (\p' -> list p >>= (\p''-> pure (p':p'')))
-
-sepby1 :: Parser a -> Parser s -> Parser [a]
-sepby1 p1 sep = p1 >>= \i -> (list (sep >> p1) >>= \i' -> pure(i:i'))
-
--- | Parse card array
--- >>> parse parseCardArray "[HT,H2,D1]"
--- Result >< "T21"
-parseCardArray :: Parser String
-parseCardArray = is '[' >> sepby1 parseOnlyRank (is ',') <* is ']'
