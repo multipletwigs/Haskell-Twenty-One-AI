@@ -15,9 +15,6 @@ import           Utils
 numDecks :: Int
 numDecks = 3
 
-numPlayers :: Int
-numPlayers = 10
-
 targetValue :: Int
 targetValue = 21
 
@@ -29,7 +26,7 @@ maxCards :: Int
 maxCards = 5
 
 startingPoints :: Int
-startingPoints = 500
+startingPoints = 10000
 
 maxBid :: Int
 maxBid = 100
@@ -271,7 +268,7 @@ validInsurance
     -> Points
     -> Either GameError Action
 validInsurance pid cpoints uprank (Bid bid) b
-    | maxInsure bid /= b      = err $ DeclaredBidError b bid
+    | maxInsure bid /= b      = err $ DeclaredBidError b (maxInsure bid)
     | maxInsure bid > cpoints = err InsuranceBidError
     | uprank /= Ace           = err InsuranceError
     | otherwise               = Right (Insurance b)

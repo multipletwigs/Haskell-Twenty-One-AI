@@ -30,7 +30,7 @@ data GameMemory = GameMemory
     {
         prevActions ::[Char], 
         prevBids    ::[Char],
-        cardCount   ::[[CardCountValue]] 
+        cardCount   ::[[Int]] 
     } 
     deriving Show
 
@@ -43,11 +43,6 @@ playCard dealerCard playerPoints playerInfo playerID myMemory myHand
 
 
 -- PARSER EXTENSION FOR PLAYERINFO --
-data CardCountValue = High | Neutral | Low
-instance Show CardCountValue where
-    show High = "High"
-    show Low = "Low"
-    show Neutral = "Neutral"
 -- >>> parse parseSpade "S"
 -- Result >< S
 parseSpade :: Parser Suit
@@ -78,31 +73,31 @@ parseSuit = parseSpade ||| parseHeart ||| parseClub ||| parseDiamond
 -- | Parses the Rank of a card and gives a CardCountValue
 -- >>> parse parseHi "A"
 -- Result >< High
-parseHi:: Parser CardCountValue
-parseHi = (is 'A' ||| is 'T' ||| is 'Q' ||| is 'K' ||| is 'J') >> pure High
+parseHi:: Parser Int
+parseHi = (is 'A' ||| is 'T' ||| is 'Q' ||| is 'K' ||| is 'J') >> pure 1
 
-parseNeutral :: Parser CardCountValue
-parseNeutral = (is '7' ||| is '8' ||| is '9') >> pure Neutral
+parseNeutral :: Parser Int
+parseNeutral = (is '7' ||| is '8' ||| is '9') >> pure 0
 
-parseLow :: Parser CardCountValue
-parseLow = (is '2' ||| is '3' ||| is '4' ||| is '5' ||| is '6') >> pure Low
+parseLow :: Parser Int
+parseLow = (is '2' ||| is '3' ||| is '4' ||| is '5' ||| is '6') >> pure (-1)
 
-parseRankToCount :: Parser CardCountValue
+parseRankToCount :: Parser Int
 parseRankToCount = parseHi ||| parseNeutral ||| parseLow
 
-parseCardToCount :: Parser CardCountValue
+parseCardToCount :: Parser Int
 parseCardToCount = parseSuit >> parseRankToCount
 
 parseID :: Parser Char
 parseID = is '"' >> character >> is '"' >> is ' '
 
-parseHand :: Parser [CardCountValue]
+parseHand :: Parser [Int]
 parseHand = is '[' >> sepby1 parseCardToCount (is ',') <* is ']'
 
-parsePlayerInfo :: Parser [CardCountValue]
+parsePlayerInfo :: Parser [Int]
 parsePlayerInfo = parseID >>= const parseHand >>= pure
 
-parsePlayerInfos :: Parser [[CardCountValue]]
+parsePlayerInfos :: Parser [[Int]]
 parsePlayerInfos = is '[' >> sepby1 parsePlayerInfo (is ',') <* is ']'
 
 -- PARSING EXTENSION FOR PARSING PLAYER ACTION -- 

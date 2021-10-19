@@ -18,6 +18,7 @@ import           EitherIO
 -- Game modules
 import           TwentyOne.Rules
 import           TwentyOne.Types
+import           Data.Ord
 
 -- | Rounds until the game ends
 roundLimit :: Int
@@ -174,7 +175,7 @@ playHand
 playHand deck prev scores = do
     -- Deal cards, with shuffling
     (dealt, stock) <- liftIO
-        $ dealContinuous numDecks startingNumCards (numPlayers + 1) deck
+        $ dealContinuous numDecks startingNumCards (length scores + 1) deck
     let dealerCards : playerCards = dealt
 
     -- Separate rich and bankrupt players
@@ -290,8 +291,12 @@ playCards upCard scores stock prev current hand sid = do
     -- Player's action
     (choice, updated) <- playAction upCard hand scores prev current
 
+    let playerNode' = fromMaybe Nil $ find
+            (\(PlayNode p _) -> pid == getId p && (sid - 1) == secondId p)
+            current
+
     -- Player's previous action in the current round
-    let playerNode = fromMaybe Nil $ find
+    let playerNode = fromMaybe playerNode' $ find
             (\(PlayNode p _) -> pid == getId p && sid == secondId p)
             current
 
@@ -334,10 +339,15 @@ playCards upCard scores stock prev current hand sid = do
                                          hand1
                                          sid
 
+            -- Find last play from original
+            let filtered = filter ((== pid) . getId) (nodeValue <$> t')
+                play' = maximumBy (comparing secondId) filtered
+                (Play _ _ bid' _ mem' _) = play'
+
             -- Split line
-            let splitNewPlay =
-                    Play pid (sid + 1) updatedBid a updated handCards
-                splitTree = PlayNode splitNewPlay playerNode : t'
+            let splitNewPlay = Play pid (sid + 1) updatedBid a mem' handCards
+                splitTree    = PlayNode splitNewPlay playerNode : t'
+
             nextPlayCard p' s' splitTree hand2 (sid + 1)
 
         playCards' _ _ = return (newCurrent, stocked, newScores)

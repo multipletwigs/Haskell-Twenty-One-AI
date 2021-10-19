@@ -73,5 +73,3 @@ chain p op = p >>= rest
                 rest (f a b)
             )
             ||| pure a
-            
-
