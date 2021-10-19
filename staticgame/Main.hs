@@ -121,5 +121,5 @@ mainSingle = do
         Left e -> print e
 
 main :: IO ()
-main = mainMultiple 100
--- main = mainSingle
+--main = mainMultiple 100
+main = mainSingle

@@ -29,7 +29,7 @@ maxCards :: Int
 maxCards = 5
 
 startingPoints :: Int
-startingPoints = 10000
+startingPoints = 500
 
 maxBid :: Int
 maxBid = 100
