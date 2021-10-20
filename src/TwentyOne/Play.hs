@@ -22,7 +22,7 @@ import           Data.Ord
 
 -- | Rounds until the game ends
 roundLimit :: Int
-roundLimit = 100
+roundLimit = 10
 
 dealerId :: PlayerId
 dealerId = "dealer"
