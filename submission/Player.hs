@@ -13,12 +13,15 @@ import           TwentyOne.Rules    -- Rules of the game
 
 import           GHC.Show (Show)
 import           Data.List
+import Debug.Trace
 -- Memory ADT
 data GameMemory = GameMemory{ bid :: String, actions :: String, rank :: String , winStreak :: String} deriving Show
 
 -- | This function is called once it's your turn, and keeps getting called until your turn ends.
 playCard :: PlayFunc
-playCard = playingStrategy
+playCard a b c d e f 
+    | trace ("PlayerId: " ++ show d ++ "\nMemory: " ++ show e) False = undefined
+    | otherwise = playingStrategy a b c d e f
 
 playingStrategy :: PlayFunc
 -- This very first round of bidding, we will use minBid to bid for the first round
@@ -39,30 +42,38 @@ playerPointsToRank playerPoints playerId = case elemIndex playerId $ _playerPoin
     Just player -> show (player + 1)
     Nothing     -> error " Player not found"
 
-addRankToMemory :: GameMemory -> Int -> String 
-addRankToMemory oldMemory newRank = 
-    bid oldMemory ++ "|" ++ actions oldMemory ++ "|" ++ show newRank ++ "|" ++ winStreak oldMemory
+playerInfoToLength :: [PlayerInfo] -> PlayerId -> Int
+playerInfoToLength playerInfo playerId = 
+    sum $ length <$> (playerInfoHand <$> filter ((playerId /= ). _playerInfoId) playerInfo)    
 
-addBidToMemory :: GameMemory -> String -> String 
-addBidToMemory oldMemory bid = 
-    bid ++ "|" ++ actions oldMemory ++ "B|" ++ rank oldMemory ++ "|" ++ winStreak oldMemory
+playerInfosToCount :: [PlayerInfo] -> PlayerId -> Int
+playerInfosToCount playerInfo playerId = 
+    convertHandsToCount $ playerInfoHand <$> filter ((playerId /= ). _playerInfoId) playerInfo
 
-addActionToMemory :: GameMemory -> String -> String 
-addActionToMemory oldMemory act = 
-    bid oldMemory ++ "|" ++ actions oldMemory ++ act ++ "|" ++ rank oldMemory ++ "|" ++ winStreak oldMemory
+convertCardToCount :: Card -> Int
+convertCardToCount card
+    | getRank card `elem` [Ace, Ten .. King] = -1
+    | getRank card `elem` [Two .. Six] = 1
+    | getRank card `elem` [Seven .. Nine] = 0
+    | otherwise = error "Error in convertCardToCount."
 
-addStreakToMemory :: GameMemory -> Int -> String 
-addStreakToMemory oldMemory streak = 
-    bid oldMemory ++ "|" ++ actions oldMemory ++ "|" ++ rank oldMemory ++ "|" ++ show streak
+convertHandToCount :: Hand -> Int
+convertHandToCount hand = sum $ convertCardToCount <$> hand
+
+convertHandsToCount :: [Hand] -> Int
+convertHandsToCount hands = sum $ convertHandToCount <$> hands
+
+addToMemory :: GameMemory -> String -> Int -> String
+addToMemory oldMemory newData position = 
+    intercalate "|" (change position newData (($ oldMemory) <$> [bid, actions, rank, winStreak]))
+
+change :: Int -> a -> [a] -> [a]
+change position a lst = 
+    take position lst ++ a : drop (position + 1) lst
 
 stringToMemory :: String -> GameMemory
 stringToMemory myMemory =
     getParsedResult $ parse parseMemory myMemory
-
--- This will convert our GameMemory to our String type
-memoryToString :: GameMemory -> String
-memoryToString gameMemory =
-    bid gameMemory ++ "|" ++ actions gameMemory ++ "|" ++ rank gameMemory
 
 -- PARSING EXTENSION FOR PARSING PLAYER ACTION -- 
 -- Here, the lower case d represents to HIT after double down, capital D represents to STAND
@@ -117,56 +128,40 @@ basicStrategyHardTotal (Card _ rank) myHand gameMemory = findAction where
     total = handCalc myHand
     bids = read $ bid gameMemory
     actionsDone = actions gameMemory
-    newMemory = addActionToMemory gameMemory
-    findAction
-        | last actionsDone == 'D' = (Hit, newMemory "d")
-        | last actionsDone == 'd' = (Stand, newMemory "S")
-        | total > 17 = (Stand, newMemory "S")
-        | total == 17 && rank `elem` dealerSHDSet = (Stand, newMemory "S")
-        | total >= 13 && total <= 16 && rank `elem` dealerStandSet1 = (Stand, newMemory "S")
-        | total >= 13 && total <= 16 && rank `elem` dealerHitSet1 = (Hit, newMemory "H")
-        | total == 12 && (rank `elem` dealerHitSet3) || (rank `elem` dealerHitSet1) = (Hit, newMemory "H")
-        | total == 12 && rank `elem` dealerStandSet2 = (Stand, newMemory "S")
-        | total == 12 && rank `elem` dealerHitSet2 = (Hit, newMemory "H")
-        | total == 11 && rank `elem` dealerSHDSet && (length myHand == 2) = (DoubleDown bids, newMemory "D")
-        | total == 10 && rank `elem` dealerDoubleSet1 && (length myHand == 2) = (DoubleDown bids, newMemory "D")
-        | total == 10 && rank `elem` dealerHitSet2 && (length myHand == 2) = (DoubleDown bids, newMemory "D")
-        | total == 9 && rank `elem` dealerHitSet2 && (length myHand == 2) = (DoubleDown bids, newMemory "D")
-        | total == 9 && (rank `elem` dealerHitSet4) || (rank `elem` dealerHitSet1) = (Hit, newMemory "H")
-        | total == 8 = (Hit, newMemory "H")
-        | otherwise = (Hit, newMemory "H")
+    newMemory = addToMemory gameMemory
 
-samePair :: Hand -> Bool
-samePair [a,b] = getRank a == getRank b
-samePair _ = undefined
+    final1 :: (Points -> Action, String)
+    final1 = basicAction (lookupQ total basicTable) rank
 
-dealerSHDSet :: [Rank]
-dealerSHDSet = [Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten, Ace, Jack, Queen, King]
+    final2 :: (Points -> Action, String)
+    final2 = basicAction (lookupQ total (take 5 basicTable)) rank
 
-dealerStandSet1:: [Rank]
-dealerStandSet1 = [Two, Three, Four, Five, Six]
+    findAction 
+        | last actionsDone == 'D' = (Hit, newMemory "d" 1)
+        | last actionsDone == 'd' = (Stand, newMemory "S" 1)
+        | length myHand == 2 = (fst final1 bids, newMemory (snd final1) 1)
+        | otherwise = (fst final2 bids, newMemory (snd final2) 1)
 
-dealerStandSet2:: [Rank]
-dealerStandSet2 = [Four, Five, Six]
+basicAction :: Maybe ([Rank] , Points -> Action, String) -> Rank -> (Points -> Action, String) 
+basicAction Nothing _ = (const Hit, "H") 
+basicAction (Just (ranks, action, act)) oppHand = 
+    if oppHand `elem` ranks then (action, act) else (const Hit, act)
 
-dealerHitSet1 :: [Rank]
-dealerHitSet1 = [Seven, Eight, Nine, Ten, Ace, Jack, Queen, King]
+basicTable :: [(Int, [Rank], Points -> Action, String)]
+basicTable = [(17, [Ace .. King],const Stand, "S"),
+              (16, [Two .. Six], const Stand, "S"),
+              (15, [Two .. Six], const Stand, "S"),
+              (14, [Two .. Six], const Stand, "S"),
+              (13, [Two .. Six], const Stand, "S"),
+              (11, [Ace .. King], DoubleDown, "D"),
+              (10, [Two .. Nine], DoubleDown, "D"),
+              (9,  [Three .. Six],DoubleDown, "D")]
 
-dealerHitSet2 :: [Rank]
-dealerHitSet2 = [Ten, Ace]
-
-dealerHitSet3 :: [Rank]
-dealerHitSet3 = [Two, Three]
-
-dealerHitSet4 :: [Rank]
-dealerHitSet4 = [Two]
-
-dealerDoubleSet1 :: [Rank]
-dealerDoubleSet1 = [Two, Three, Four, Five, Six, Seven, Eight, Nine]
-
-dealerDoubleSet2 :: [Rank]
-dealerDoubleSet2 = [Three, Four, Five, Six]
-
+lookupQ :: (Eq a) => a -> [(a,b,c,d)] -> Maybe (b, c, d)
+lookupQ _key [] =  Nothing
+lookupQ key ((x,y,z,a):xyzas)
+    | key == x  =  Just (y, z, a)
+    | otherwise =  lookupQ key xyzas
 
 -- BIDDING STRATEGY -- 
 biddingStrategy :: [PlayerPoints] -> PlayerId -> String -> (Action, String)
@@ -188,14 +183,14 @@ biddingStrategy playerPoints playerId oldMemory = finalBid where
     streaks prevR currR = if currR - prevR > 0 then currStreak + 1 else 0 
 
     gameMemStreak :: GameMemory
-    gameMemStreak = stringToMemory $ addStreakToMemory gameMem (streaks prevRank currRank)
+    gameMemStreak = stringToMemory $ addToMemory gameMem (show (streaks prevRank currRank)) 3
 
     gameMemRank :: GameMemory
-    gameMemRank = stringToMemory $ addRankToMemory gameMemStreak currRank
+    gameMemRank = stringToMemory $ addToMemory gameMemStreak (show currRank) 2
 
     finalAmount :: Int 
-    finalAmount = currRank * minBid + (streaks prevRank currRank * 2)
+    finalAmount = currRank * minBid + (streaks prevRank currRank * 10)
 
     finalBid 
-        | finalAmount >= maxBid = (Bid maxBid, addBidToMemory gameMemRank (show maxBid))
-        | otherwise = (Bid finalAmount, addBidToMemory gameMemRank (show finalAmount))
+        | finalAmount >= maxBid = (Bid maxBid, addToMemory gameMemRank (show maxBid) 0)
+        | otherwise = (Bid finalAmount, addToMemory gameMemRank (show finalAmount) 0)
