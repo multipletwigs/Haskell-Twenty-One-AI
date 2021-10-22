@@ -131,31 +131,51 @@ basicStrategyHardTotal (Card _ rank) myHand gameMemory = findAction where
     newMemory = addToMemory gameMemory
 
     final1 :: (Points -> Action, String)
-    final1 = basicAction (lookupQ total basicTable) rank
+    final1 = basicAction (lookupQ total basicTableHard) rank
 
     final2 :: (Points -> Action, String)
-    final2 = basicAction (lookupQ total (take 5 basicTable)) rank
+    final2 = basicAction (lookupQ total (take 5 basicTableHard)) rank
 
     findAction 
         | last actionsDone == 'D' = (Hit, newMemory "d" 1)
         | last actionsDone == 'd' = (Stand, newMemory "S" 1)
         | length myHand == 2 = (fst final1 bids, newMemory (snd final1) 1)
-        | otherwise = (fst final2 bids, newMemory (snd final2) 1)
+        | otherwise = (fst final2 bids, newMemory (snd final2) 1)  
 
 basicAction :: Maybe ([Rank] , Points -> Action, String) -> Rank -> (Points -> Action, String) 
 basicAction Nothing _ = (const Hit, "H") 
 basicAction (Just (ranks, action, act)) oppHand = 
     if oppHand `elem` ranks then (action, act) else (const Hit, act)
 
-basicTable :: [(Int, [Rank], Points -> Action, String)]
-basicTable = [(17, [Ace .. King],const Stand, "S"),
-              (16, [Two .. Six], const Stand, "S"),
-              (15, [Two .. Six], const Stand, "S"),
-              (14, [Two .. Six], const Stand, "S"),
-              (13, [Two .. Six], const Stand, "S"),
-              (11, [Ace .. King], DoubleDown, "D"),
-              (10, [Two .. Nine], DoubleDown, "D"),
-              (9,  [Three .. Six],DoubleDown, "D")]
+basicTableHard :: [(Int, [Rank], Points -> Action, String)]
+basicTableHard = [(17, [Ace .. King], const Stand, "S"),
+                  (16, [Two ..  Six], const Stand, "S"),
+                  (15, [Two ..  Six], const Stand, "S"),
+                  (14, [Two ..  Six], const Stand, "S"),
+                  (13, [Two ..  Six], const Stand, "S"),
+                  (11, [Ace .. King], DoubleDown, "D"),
+                  (10, [Two .. Nine], DoubleDown, "D"),
+                  (9,  [Three .. Six], DoubleDown, "D")]
+
+basicTableSoft :: [(Int, [Rank], Points -> Action, String)]
+basicTableSoft = [(9, [Ace .. King], const Stand, "S"),
+                  (8, [Ace .. King], const Stand, "S"),
+                  (7, [Two ..  Six], DoubleDown, "D"),
+                  (6, [Two ..  Six], DoubleDown, "D"),
+                  (5, [Four ..Six],  DoubleDown, "D"),
+                  (4, [Four .. Six], DoubleDown, "D"),
+                  (3, [Five .. Six], DoubleDown, "D"),
+                  (2, [Five .. Six], DoubleDown, "D")]
+
+basicTableSplit :: [(Rank, [Rank], Points -> Action, String)]
+basicTableSplit = [(Ace, [Ace .. King], Split, "Sp"),
+                  (Nine, [Nine, Two .. Six], Split, "Sp"),
+                  (Eight, [Ace .. King], Split, "Sp"),
+                  (Seven, [Two ..  Seven], Split, "Sp"),
+                  (Six, [Two ..  Six], Split, "Sp"),
+                  (Four, [Five .. Six], Split, "Sp"),
+                  (Three, [Two .. Six], Split, "Sp"),
+                  (Two, [Two .. Seven], Split, "Sp")]
 
 lookupQ :: (Eq a) => a -> [(a,b,c,d)] -> Maybe (b, c, d)
 lookupQ _key [] =  Nothing
