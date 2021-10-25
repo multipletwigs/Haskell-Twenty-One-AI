@@ -18,8 +18,6 @@ import           Control.Monad (liftM4)
 
 import           Debug.Trace(trace)
 
-import qualified Data.Ord
-
 -- Memory ADT
 data GameMemory = GameMemory{
                   bid       :: Int,
@@ -37,10 +35,10 @@ type LookUpItem = (Int, [Rank], Points -> Action, String)
 type LookUpTable = [LookUpItem]
 
 -- LookUpTable contant for onlyStanding actions, will be explained further below under basicStrategy
-onlyStandH :: Int
+onlyStandH :: Int -- Selecting onlyStand section of hard totals
 onlyStandH = 9
 
-onlyStandS :: Int
+onlyStandS :: Int -- Selecting onlyStand section of soft totals
 onlyStandS = 3
 
 -- List of functions used for GameMemory to String conversion
@@ -69,15 +67,35 @@ playingStrategy (Just dealerCard) playerPoints playerInfo playerID (Just memory)
 playingStrategy _ _ _ _ _ _ = error "Error in playingStrategy."
 
 -- | Converts whatever player points to a ranking system. The more points you have the more, the higher your ranking will be.
+-- >>> playerPoint1 = PlayerPoints "1" 2000
+-- >>> playerPoint2 = PlayerPoints "2" 2500
+-- >>> playerPoint3 = PlayerPoints "3" 1000
+-- >>> playerPointsArr = [playerPoint1, playerPoint2, playerPoint3]
+
+-- >>> playerPointsToRank playerPointsArr "2" 
+-- 3
+-- >>> playerPointsToRank playerPointsArr "3"
+-- 1
 playerPointsToRank :: [PlayerPoints] -> PlayerId -> Int
 playerPointsToRank playerPoints playerId =
-    case elemIndex playerId $ _playerPointsId <$> sortOn (Data.Ord.Down . _playerPoints) playerPoints of
+    case elemIndex playerId $ _playerPointsId <$> sortOn _playerPoints playerPoints of
     Just player -> player + 1
     Nothing     -> error "Player not found."
 
 -- | Aggregates the playerInfo into number of cards for a certain collection of playerInfo in a ROUND
+-- >>> playerInf1 = PlayerInfo "1" [Card Spade Ace, Card Spade Ten] 
+-- >>> playerInf2 = PlayerInfo "2" [Card Heart Seven, Card Heart Three, Card Diamond Queen]
+-- >>> playerInf3 = PlayerInfo "3" [Card Club Five]
+-- >>> playerInfos = [playerInf1, playerInf2, playerInf3]
+--
+-- >>> playerInfoToLength playerInfos 
+-- 6
+-- 
+-- >>> playerInfoToLength []
+-- 0
 playerInfoToLength :: [PlayerInfo]  -> Int
 playerInfoToLength playerInfo = foldr ((+) . length) 0 (playerInfoHand <$> playerInfo)
+
 
 -- | Helper function that converts a collection of playerInfo into number of cards
 playerInfosToCount :: [PlayerInfo] -> Int
@@ -125,6 +143,7 @@ parseDigit = is '-' ||| is '0' ||| is '1' ||| is '2' ||| is '3' ||| is '4' ||| i
 
 -- | parseNumber converts the string into an int at the very end using read and fmap
 -- >>> parse parseNumber "100"
+-- Result >< 100
 parseNumber :: Parser Int
 parseNumber = read <$> list parseDigit
 
@@ -171,8 +190,8 @@ list1 p = p >>= (\p' -> list p >>= (\p''-> pure (p':p'')))
 basicStrategyHardTotal :: Card -> Points -> [PlayerInfo] -> GameMemory -> Hand ->  (Action, String)
 basicStrategyHardTotal (Card _ rank) myPoints playerInfo gameMemory myHand = findAction where
 
-    bids :: Int
-    bids = bid gameMemory
+    prevBid :: Int
+    prevBid = bid gameMemory
 
     interMemory :: Int
     interMemory = cardsSeen gameMemory + playerInfoToLength playerInfo 
@@ -187,7 +206,7 @@ basicStrategyHardTotal (Card _ rank) myPoints playerInfo gameMemory myHand = fin
     newMemory = addToMemory gameMemory
 
     tableUsed :: LookUpTable
-    tableUsed = determineTable myHand myPoints bids
+    tableUsed = determineTable myHand myPoints prevBid
 
     finalBasic :: (Points -> Action, String)
     finalBasic = basicAction (lookupQ (handCalc myHand) tableUsed) rank
@@ -195,7 +214,7 @@ basicStrategyHardTotal (Card _ rank) myPoints playerInfo gameMemory myHand = fin
     findAction
         | last actionsDone == 'D' = (Hit, newMemory [("d", 1), (show interMemory', 5), (show interMemory, 7)])
         | last actionsDone == 'd' = (Stand, newMemory [("S", 1), (show interMemory', 5),(show interMemory, 7)])
-        | otherwise = (fst finalBasic bids, newMemory [(snd finalBasic, 1), (show interMemory', 5),(show interMemory, 7)])
+        | otherwise = (fst finalBasic prevBid, newMemory [(snd finalBasic, 1), (show interMemory', 5),(show interMemory, 7)])
 
 determineTable :: [Card] -> Points -> Points -> LookUpTable
 determineTable myHand currPoints bidPoints
