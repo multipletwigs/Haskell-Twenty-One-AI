@@ -3,6 +3,7 @@ module Utils where
 import           Data.List
 import           Data.Function
 import           Control.Monad
+import           Data.Bits
 
 -- | Nested map
 --
@@ -12,6 +13,18 @@ import           Control.Monad
 (<$$>) = (<$>) . (<$>)
 
 infix 4 <$$>
+
+-- | Left shift
+--
+-- >>> 1 << 1
+-- 2
+--
+-- prop> \n m -> if n > m && n >= 0 && m >= 0 then 2 ^ (n - m) << m == 2 ^ n else True
+-- +++ OK, passed 100 tests.
+(<<) :: Int -> Int -> Int
+(<<) = shiftL
+
+infix 8 <<
 
 groupEqual :: Eq b => (a -> b) -> [a] -> [[a]]
 groupEqual = groupBy . ((==) `on`)

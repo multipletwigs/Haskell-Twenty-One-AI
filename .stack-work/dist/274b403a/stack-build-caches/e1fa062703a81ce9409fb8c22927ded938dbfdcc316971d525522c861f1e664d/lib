@@ -1,15 +1,15 @@
 C:\Users\US\Desktop\Work Stuff\Year 2\FIT2102-Assignment-2\src\EitherIO.hs:
   hash: 58e72de55307a92d690f37be561c5a93ed31fb8d21bf070b8636128937446839
 C:\Users\US\Desktop\Work Stuff\Year 2\FIT2102-Assignment-2\src\TwentyOne\Play.hs:
-  hash: 62a0d5ef76f917cb62293755ba9193e3f33feb7f2f131d60ab8b3d1a73745454
+  hash: c4e7f4b3b3144511c00e588bbc439356ce91120288cc5d797ccfa084fe2270c4
 C:\Users\US\Desktop\Work Stuff\Year 2\FIT2102-Assignment-2\src\Cards.hs:
   hash: a62fcfbb2d5c2b9bfe40ede511e157539d9056cc7b79b435ee4aca091b61c29d
 C:\Users\US\Desktop\Work Stuff\Year 2\FIT2102-Assignment-2\src\TwentyOne\Rules.hs:
-  hash: 63f3639ff28d23a40a3aab0c8e541933f660283852faf5c678a13442ee3ba3b9
+  hash: c667d3a141dc7551b3f9829bf73730608f3ef6674b6e4f123266b6994984d9e2
 C:\Users\US\AppData\Local\Programs\stack\x86_64-windows\ghc-8.10.3\lib\include\ghcversion.h:
   hash: c48ad36f2f58fb4c6880f8883b41f1dc05207e41a06d05dde520edc9773ce4d1
 C:\Users\US\Desktop\Work Stuff\Year 2\FIT2102-Assignment-2\src\TwentyOne\Types.hs:
-  hash: 3aecaf426246a2712868254231db4aecfae6ef8050026f02cbfbdca394c80500
+  hash: c352aebb783ff3b3c40c1dbc16a67fda55288385de920885741c938d75d69b53
 C:\Users\US\Desktop\Work Stuff\Year 2\FIT2102-Assignment-2\twentyone.cabal:
   hash: 1ce7da4bab341e3ba4149cfe681c753d0f6eda97993fe482077c973c5bff3543
 C:\Users\US\Desktop\Work Stuff\Year 2\FIT2102-Assignment-2\src\Parser\Instances.hs:
@@ -17,7 +17,7 @@ C:\Users\US\Desktop\Work Stuff\Year 2\FIT2102-Assignment-2\src\Parser\Instances.
 C:\Users\US\Desktop\Work Stuff\Year 2\FIT2102-Assignment-2\src\Deck.hs:
   hash: 67d2ddd3a9ae6b72c526d986c51bea56b12747e3174e06cbd128dcbae0e4c46a
 C:\Users\US\Desktop\Work Stuff\Year 2\FIT2102-Assignment-2\src\Utils.hs:
-  hash: f6857c126e8690f08fed4dfab6ec3bb9e76c8f8c09edaf4b3f25f78ebed5eee1
+  hash: 21f2cf894cc81782f11c67dec20dffc27febf4b9d37e82712f85e447b9c839aa
 C:\Users\US\Desktop\Work Stuff\Year 2\FIT2102-Assignment-2\package.yaml:
   hash: ea21c962f6bf0ce184b4a08115832521bfb92599e1bd00ed16930cbc541b79b7
 C:\Users\US\Desktop\Work Stuff\Year 2\FIT2102-Assignment-2\.stack-work\dist\274b403a\build\autogen\cabal_macros.h:

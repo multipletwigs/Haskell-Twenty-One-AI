@@ -116,6 +116,10 @@ isCombo _ = False
 -- >>> cards = [Card Spade Ace, Card Spade Two, Card Spade Three, Card Spade Four, Card Spade Five]
 -- >>> handValue cards
 -- Charlie
+--
+-- >>> cards = [Card Spade Ten, Card Spade Two, Card Spade Three, Card Spade Four, Card Spade Five]
+-- >>> handValue cards
+-- Bust
 -- >>> cards = [Card Club Five, Card Club Six, Card Spade Ace]
 -- >>> handValue cards
 -- 12P
@@ -124,9 +128,9 @@ isCombo _ = False
 -- 10P
 handValue :: Hand -> HandValue
 handValue cards | isCombo cards            = Combo
+                | value > targetValue      = Bust
                 | length cards == maxCards = Charlie
-                | value <= targetValue     = Value value
-                | otherwise                = Bust
+                | otherwise                = Value value
     where value = handCalc cards
 
 -- | Calculate value of a hand
@@ -184,6 +188,11 @@ evaluatePoints dvalue play
     bid    = getPoints play
     pvalue = handValue . finalHand $ play
 
+findBid :: PlayNode -> Maybe Points
+findBid Nil            = Nothing
+findBid (PlayNode p r) = case act p of
+    Bid n -> Just n
+    _     -> findBid r
 
 -- | Verify that the chosen action is a valid play
 --
@@ -199,23 +208,21 @@ validPlay
     -> PlayerHand     -- Player's Hand
     -> [PlayerPoints] -- Player's points
     -> Maybe Card     -- Dealer's up-card
-    -> Trick          -- Current Trick
+    -> PlayNode       -- Current play node
     -> Either GameError Action
-validPlay action hand pp (Just (Card _ rank)) current = case action of
+validPlay action hand pp (Just (Card _ rank)) node = case action of
     Bid        _ -> err LateBidError
-    Insurance  b -> validInsurance pid points rank (act lastPlay) b
-    DoubleDown b -> validDoubleDown pid points bid (cards hand) b
-    Split      b -> validSplit pid points bid (cards hand) b
-    _            -> validSequence pid action current
+    Insurance  b -> validInsurance pid points rank lastAct b
+    DoubleDown b -> validDoubleDown pid points bid cs b
+    Split      b -> validSplit pid points bid cs b
+    _            -> validSequence pid action node
   where
-    pid      = getId hand
-    err      = Left . flip GameError pid
-
-    points   = find' getPoints pid getId pp
-
-    node     = fromMaybe Nil $ find ((== pid) . getId . nodeValue) current
-    lastPlay = nodeValue node
-    bid      = getPoints $ nodeValue node
+    pid     = getId hand
+    err     = Left . flip GameError pid
+    cs      = cards hand
+    points  = find' getPoints pid getId pp
+    lastAct = act $ nodeValue' node
+    bid     = fromJust $ findBid node
 
 -- Bid actions (this is stil part of validPlay)
 --
@@ -315,13 +322,14 @@ validDoubleDown
     -> Hand
     -> Points
     -> Either GameError Action
-validDoubleDown pid cpoints bid cards b
-    | b /= bid                         = err $ DeclaredBidError b bid
-    | -- Can only double down on first turn
-      length cards /= startingNumCards = err LateDoubleDownError
-    | bid > cpoints                    = err DoubleDownBidError
-    | otherwise                        = Right (DoubleDown b)
+validDoubleDown pid cpoints bid [_, _] b
+    | b /= bid      = err $ DeclaredBidError b bid
+    | bid > cpoints = err DoubleDownBidError
+    | otherwise     = Right (DoubleDown b)
     where err = Left . flip GameError pid
+
+-- Can only double down on two cards
+validDoubleDown pid _ _ _ _ = Left $ GameError LateDoubleDownError pid
 
 -- | Check that the sequence of actions is valid.
 --
@@ -330,38 +338,38 @@ validDoubleDown pid cpoints bid cards b
 --
 -- Testing tricks
 -- >>> let play a = Play "1" 0 5 a "" []
--- >>> let t1 = [PlayNode (play (DoubleDown 1)) Nil]
--- >>> let t2 = [PlayNode (play Hit) $ PlayNode (play (DoubleDown 1)) Nil]
--- >>> let t3 = [PlayNode (play Hit) $ PlayNode (play Hit) Nil]
+-- >>> let p0 = PlayNode (play (Bid 10)) Nil
+-- >>> let p1 = PlayNode (play (DoubleDown 1)) p0
+-- >>> let p2 = PlayNode (play Hit) p1
+-- >>> let p3 = PlayNode (play Hit) p2
 --
--- >>> validSequence "1" (DoubleDown 1) []
+-- >>> validSequence "1" (DoubleDown 1) p0
 -- Right (DoubleDown 1)
 --
--- >>> validSequence "1" Hit t1
+-- >>> validSequence "1" Hit p1
 -- Right Hit
 --
--- >>> validSequence "1" Stand t2
+-- >>> validSequence "1" Stand p2
 -- Right Stand
 --
--- >>> validSequence "1" (DoubleDown 1) t3
+-- >>> validSequence "1" (DoubleDown 1) p3
 -- Right (DoubleDown 1)
 --
--- >>> validSequence "1" Stand t1
+-- >>> validSequence "1" Stand p1
 -- Left Error: '1' Incorrect sequence of actions for double down [DoubleDown 1,Stand]
-validSequence :: PlayerId -> Action -> Trick -> Either GameError Action
-validSequence pid action current | hasDouble && wrongSequence = doubleError
-                                 | otherwise                  = Right action
+validSequence :: PlayerId -> Action -> PlayNode -> Either GameError Action
+validSequence pid action node | hasDouble && wrongSequence = doubleError
+                              | otherwise                  = Right action
   where
     err               = Left . flip GameError pid
     doubleError       = err $ DoubleDownError (show lastDoubleActions)
 
     -- Previous play nodes
-    currentNode       = find ((== pid) . getId . nodeValue) current
-    prevNode          = currentNode >>= nextNode
+    prevNode          = nextNode node
+    last2Actions      = act <$$> [nodeValue =<< prevNode, nodeValue node]
 
     -- Previous actions (actual action order is reverse of node order)
-    actions'          = act . nodeValue <$$> [prevNode, currentNode]
-    last3Actions      = catMaybes actions' ++ [action]
+    last3Actions      = catMaybes last2Actions ++ [action]
     lastDoubleActions = dropWhile (not . isDoubleDown) last3Actions
 
     -- Sequences only care about the constructor

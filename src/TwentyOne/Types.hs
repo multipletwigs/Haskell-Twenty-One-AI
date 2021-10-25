@@ -124,6 +124,9 @@ instance Show Play where
 instance Eq Play where
     p1 == p2 = getId p1 == getId p2 && secondId p1 == secondId p2
 
+hasIds :: PlayerId -> Int -> Play -> Bool
+hasIds pid sid = liftM2 (&&) ((== pid) . getId) ((== sid) . secondId)
+
 {-
     Collections
 -}
@@ -153,9 +156,13 @@ instance Show PlayNode where
     -- show (PlayNode p c) = show c ++ "->" ++ show p
     show (PlayNode p c) = show p
 
-nodeValue :: PlayNode -> Play
-nodeValue (PlayNode p _) = p
-nodeValue _              = error "Tried to get value of Nil"
+nodeValue :: PlayNode -> Maybe Play
+nodeValue (PlayNode p _) = Just p
+nodeValue _              = Nothing
+
+nodeValue' :: PlayNode -> Play
+nodeValue' (PlayNode p _) = p
+nodeValue' _              = error "Tried to get value of Nil"
 
 nextNode :: PlayNode -> Maybe PlayNode
 nextNode (PlayNode _ c@(PlayNode _ _)) = Just c
