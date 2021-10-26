@@ -5,30 +5,28 @@ module Player where
 
 import           Parser.Parser      -- This is the source for the parser from the course notes
 import           Parser.Instances
-
 import           Cards              -- Finally, the generic card type(s)
-
 import           TwentyOne.Types    -- Here you will find types used in the game of TwentyOne
 import           TwentyOne.Rules    -- Rules of the game
-
 import           GHC.Show (Show)
 import           Data.List
-
-import           Control.Monad (liftM4)
-
 import           Debug.Trace(trace)
 
--- Memory ADT
-data GameMemory = GameMemory{
-                  bid       :: Int,
-                  actions   :: String,
-                  rank      :: Int ,
-                  winStreak :: Int,
-                  count     :: Int,
-                  currCount :: Int,
-                  cardsSeen :: Int,
-                  currCardS :: Int
-                  } deriving Show
+-- Memory ADT --
+-- *THINGS TO NOTE* 
+-- 1. count refers to the true count kept track throughout the game, and 
+-- 2. currCount tracks the count of ONE particular turn for a player. 
+-- 3. rank refers to the ranking of the player in the last round, the higher the rank the more points you have in [PlayerPoints].
+-- 4. winStreak increases when there is a positive change in point ranking, based off on last round and a current round.  
+-- 5. cardsSeen refers to the true number of cards seen within the 3 decks, kept track using `mod` 156. 
+-- 6. currCardsS refers to the number of cards seen for ONE particular turn for a player. 
+data GameMemory = GameMemory
+                  {
+                             bid       :: Int, actions   :: String, -- Ensures that game rules are followed, by keeping track of bid and actions.
+                             rank      :: Int, winStreak :: Int,    -- A statistic of winning streak as defined by a positive rank increase.
+                             count     :: Int, currCount :: Int,    -- A statistic of keeping the true count and a round count. 
+                             cardsSeen :: Int, currCardS :: Int     -- A statistic of keeping the total cards seen and a round cards seen count. 
+                  }          deriving Show
 
 -- LookUp types for actions to be performed, a LookUpTable is an array of LookUpItems
 type LookUpItem = (Int, [Rank], Points -> Action, String)
@@ -48,7 +46,7 @@ funcList = [show . bid, actions, show . rank, show . winStreak, show . count, sh
 -- | This function is called once it's your turn, and keeps getting called until your turn ends.
 playCard :: PlayFunc
 playCard a b c d e f
-    | trace ("\nplayerPoints: " ++ show b ++ "\nplayerId: " ++ show d ++"\nMyMemory:" ++ show e) False = undefined
+    | trace ("\nmyHand: " ++ show f ++"\nDealer: " ++ show a ++ "\nplayerInfo: " ++ show c ++ "\nplayerPoints: " ++ show b ++ "\nplayerId: " ++ show d ++"\nMyMemory:" ++ show e) False = undefined
     | otherwise = playingStrategy a b c d e f
 
 playingStrategy :: PlayFunc
@@ -56,78 +54,15 @@ playingStrategy :: PlayFunc
 playingStrategy Nothing _ _ _  Nothing _ = (Bid minBid, show minBid++"|B|0|0|0|0|0|0")
 
 -- This is the case where we bid in other rounds 
-playingStrategy Nothing playerPoints playerInfo playerID (Just memory) _ = biddingStrategy playerPoints playerID playerInfo memory
+playingStrategy Nothing playerPoints playerInfo playerID (Just memory) _ = biddingStrategy playerPoints playerID playerInfo (stringToMemory memory)
 
 -- This is the case for when we perform actions other than bidding 
 playingStrategy (Just dealerCard) playerPoints playerInfo playerID (Just memory) myHand = findStrat where
     myPoints = foldr (\pp acc -> if playerID == _playerPointsId pp then _playerPoints pp else acc) 0 playerPoints
-    findStrat = basicStrategyHardTotal dealerCard myPoints playerInfo (stringToMemory memory) myHand
+    findStrat = basicStrategyHardTotal dealerCard myPoints playerInfo (stringToMemory memory) myHand playerID
 
--- This case will not happen, an error will be thrown if it does!
+-- This case will not happen, an error will be thrown if it does! Here just to silence any unmatched pattern warnings. 
 playingStrategy _ _ _ _ _ _ = error "Error in playingStrategy."
-
--- | Converts whatever player points to a ranking system. The more points you have the more, the higher your ranking will be.
--- >>> playerPoint1 = PlayerPoints "1" 2000
--- >>> playerPoint2 = PlayerPoints "2" 2500
--- >>> playerPoint3 = PlayerPoints "3" 1000
--- >>> playerPointsArr = [playerPoint1, playerPoint2, playerPoint3]
-
--- >>> playerPointsToRank playerPointsArr "2" 
--- 3
--- >>> playerPointsToRank playerPointsArr "3"
--- 1
-playerPointsToRank :: [PlayerPoints] -> PlayerId -> Int
-playerPointsToRank playerPoints playerId =
-    case elemIndex playerId $ _playerPointsId <$> sortOn _playerPoints playerPoints of
-    Just player -> player + 1
-    Nothing     -> error "Player not found."
-
--- | Aggregates the playerInfo into number of cards for a certain collection of playerInfo in a ROUND
--- >>> playerInf1 = PlayerInfo "1" [Card Spade Ace, Card Spade Ten] 
--- >>> playerInf2 = PlayerInfo "2" [Card Heart Seven, Card Heart Three, Card Diamond Queen]
--- >>> playerInf3 = PlayerInfo "3" [Card Club Five]
--- >>> playerInfos = [playerInf1, playerInf2, playerInf3]
---
--- >>> playerInfoToLength playerInfos 
--- 6
--- 
--- >>> playerInfoToLength []
--- 0
-playerInfoToLength :: [PlayerInfo]  -> Int
-playerInfoToLength playerInfo = foldr ((+) . length) 0 (playerInfoHand <$> playerInfo)
-
-
--- | Helper function that converts a collection of playerInfo into number of cards
-playerInfosToCount :: [PlayerInfo] -> Int
-playerInfosToCount playerInfo = convertHandsToCount $ playerInfoHand <$> playerInfo
-
--- | Helper function that converts a card into a card value, which can be -1, 1 or 0. These cards are based off the Hi-Lo card counting strategy.
-convertCardToCount :: Card -> Int
-convertCardToCount card
-    | getRank card `elem` Ace : [Ten .. King] = -1
-    | getRank card `elem` [Two .. Six] = 1
-    | getRank card `elem` [Seven .. Nine] = 0
-    | otherwise = error "Error in convertCardToCount."
-
--- | Helper function that converts a particular hand into a total count for the hand based off the Hi-Lo card counting strategy. 
-convertHandToCount :: Hand -> Int
-convertHandToCount hand = sum $ convertCardToCount <$> hand
-
--- | Helper function that converts multiple hands into a total count for the hand based off the Hi-Lo card counting strategy. 
-convertHandsToCount :: [Hand] -> Int
-convertHandsToCount hands = sum $ convertHandToCount <$> hands
-
--- | A carefully designed and succinct function used to convert old GameMemory into a new memory string based off an array of incoming new data.
-addToMemory :: GameMemory -> [(String, Int)] -> String
-addToMemory oldMemory newData = intercalate "|" $ foldr (\(inf, pos) prev -> change pos inf prev) (($ oldMemory) <$> funcList) newData
-
--- | A function that changes the item at a position of a list by taking in a position, a new item and a list to change as input. 
-change :: Int -> a -> [a] -> [a]
-change position a lst = take position lst ++ a : drop (position + 1) lst
-
--- | Conversion of string to custom GameMemory data using the parser and getting its result. Here the intricacies of conversion is abstracted away when used in later functions 
-stringToMemory :: String -> GameMemory
-stringToMemory myMemory = getParsedResult $ parse parseMemory myMemory
 
 -- PARSING EXTENSION FOR PARSING PLAYER ACTION -- 
 -- Here, the lower case d represents to HIT after double down, capital D represents to STAND
@@ -142,37 +77,27 @@ parseDigit :: Parser Char
 parseDigit = is '-' ||| is '0' ||| is '1' ||| is '2' ||| is '3' ||| is '4' ||| is '5' ||| is '6' ||| is '7' ||| is '8' ||| is '9'
 
 -- | parseNumber converts the string into an int at the very end using read and fmap
--- >>> parse parseNumber "100"
--- Result >< 100
 parseNumber :: Parser Int
 parseNumber = read <$> list parseDigit
 
 -- PARSER EXTENSION FOR MEMORY PARSER --
--- >>> parse parseMemory "100|BHHS|1|3"
--- Result >< GameMemory {bid = 100, actions = "BHHS", rank = 1, winStreak = 3}
---
--- >>> parse parseMemory "100|BHHS|9|5"
--- Result >< GameMemory {bid = 100, actions = "BHHS", rank = 9, winStreak = 5}
---
--- >>> isErrorResult (parse parseMemory "100|BHHS|a|p")
--- True
 parseMemory :: Parser GameMemory
 parseMemory = do
-    bid          <- parseNumber
+    bid          <- parseNumber  
     _            <- is '|'
-    actions      <- parseActions
+    actions      <- parseActions 
     _            <- is '|'
-    rank         <- parseNumber
+    rank         <- parseNumber  
     _            <- is '|'
-    winStreak    <- parseNumber
+    winStreak    <- parseNumber 
     _            <- is '|'
-    count        <- parseNumber
+    count        <- parseNumber  
     _            <- is '|'
-    seen         <- parseNumber
+    seen         <- parseNumber  
     _            <- is '|'
-    curSeen      <- parseNumber
+    currSeen      <- parseNumber  
     _            <- is '|'
-    GameMemory bid actions rank winStreak count seen curSeen <$> parseNumber
+    GameMemory bid actions rank winStreak count seen currSeen <$> parseNumber
 
 -- PARSER EXTENSION FOR OBTAINING PARSED RESULT -- 
 getParsedResult :: ParseResult a -> a
@@ -187,8 +112,8 @@ list1 :: Parser a -> Parser [a]
 list1 p = p >>= (\p' -> list p >>= (\p''-> pure (p':p'')))
 
 -- BASIC STRATEGY IMPLEMENTATION --
-basicStrategyHardTotal :: Card -> Points -> [PlayerInfo] -> GameMemory -> Hand ->  (Action, String)
-basicStrategyHardTotal (Card _ rank) myPoints playerInfo gameMemory myHand = findAction where
+basicStrategyHardTotal :: Card -> Points -> [PlayerInfo] -> GameMemory -> Hand ->  PlayerId -> (Action, String)
+basicStrategyHardTotal (Card _ rank) myPoints playerInfo gameMemory myHand playerId = findAction where
 
     prevBid :: Int
     prevBid = bid gameMemory
@@ -197,7 +122,7 @@ basicStrategyHardTotal (Card _ rank) myPoints playerInfo gameMemory myHand = fin
     interMemory = cardsSeen gameMemory + playerInfoToLength playerInfo 
 
     interMemory' :: Int
-    interMemory' = count gameMemory + playerInfosToCount playerInfo
+    interMemory' = count gameMemory + playerInfosToCount' playerInfo playerId
 
     actionsDone :: String
     actionsDone = actions gameMemory
@@ -216,6 +141,8 @@ basicStrategyHardTotal (Card _ rank) myPoints playerInfo gameMemory myHand = fin
         | last actionsDone == 'd' = (Stand, newMemory [("S", 1), (show interMemory', 5),(show interMemory, 7)])
         | otherwise = (fst finalBasic prevBid, newMemory [(snd finalBasic, 1), (show interMemory', 5),(show interMemory, 7)])
 
+-- | determineTable helps us find which table that we are supposed to use from the 3 different lookUp Tables. 
+-- Understand that there are many conditions 
 determineTable :: [Card] -> Points -> Points -> LookUpTable
 determineTable myHand currPoints bidPoints
     | length myHand == 2 && currPoints >= (2 * bidPoints) = case myHand of
@@ -233,52 +160,54 @@ basicAction (Just (ranks, action, act)) oppHand =
     if oppHand `elem` ranks then (action, act) else (const Hit, act)
 
 -- BIDDING STRATEGY IMPLEMENTATION -- 
-biddingStrategy :: [PlayerPoints] -> PlayerId -> [PlayerInfo] -> String -> (Action, String)
+biddingStrategy :: [PlayerPoints] -> PlayerId -> [PlayerInfo] -> GameMemory -> (Action, String)
 biddingStrategy playerPoints playerId playerInfo oldMemory = finalBid where
 
-    gameMem :: GameMemory
-    gameMem = stringToMemory oldMemory
-
     interMemory'' :: Int
-    interMemory'' = mod (currCardS gameMem + cardsSeen gameMem + playerInfoToLength playerInfo) 156
+    interMemory'' = mod (currCardS oldMemory + cardsSeen oldMemory + playerInfoToLength playerInfo) 156
 
-    interMemory' :: Int
-    interMemory' = div 156 (1 + interMemory'')
+    decksLeft :: Int
+    decksLeft = div 156 (1 + interMemory'')
 
-    interMemory :: Int
-    interMemory = div (currCount gameMem + playerInfosToCount playerInfo) interMemory'
+    trueCount :: Int
+    trueCount = div (currCount oldMemory + playerInfosToCount playerInfo) decksLeft
 
-    prevRank :: Int
-    prevRank = rank gameMem
-
-    currRank :: Int
+    currRank :: Int 
     currRank = playerPointsToRank playerPoints playerId
 
-    myPoints:_ = filter ((playerId == ). _playerPointsId) playerPoints
+    myPoints :: Points
+    myPoints = findPoints playerPoints playerId 
 
-    currStreak :: Int
-    currStreak = winStreak gameMem
-
-    streaks :: Int -> Int -> Int
-    streaks prevR currR = if currR - prevR > 0 then currStreak + 1 else 0
+    totalStreak :: Int
+    totalStreak = findStreaks oldMemory playerPoints playerId
 
     finalAmount :: Int
-    finalAmount = interMemory * minBid + (streaks prevRank currRank * 2)
+    finalAmount = trueCount * minBid + totalStreak * 2
+
+    newMemory :: Int -> [(String, Int)]
+    newMemory newBid = [(show newBid, 0), ("B", 1),(show currRank, 2),(show totalStreak, 3), (show trueCount, 4),(show interMemory'', 6)]
 
     finalBid
-        | finalAmount >= maxBid && _playerPoints myPoints >= maxBid =
-            (Bid maxBid, addToMemory gameMem [(show maxBid, 0), (show (streaks prevRank currRank), 3), (show currRank, 2), (show interMemory, 4),(show interMemory'', 6)])
+        | finalAmount >= maxBid && myPoints >= maxBid = (Bid maxBid, addToMemory oldMemory $ newMemory maxBid)
+        | finalAmount <= minBid && myPoints >= minBid = (Bid minBid, addToMemory oldMemory $ newMemory minBid)
+        | myPoints <= minBid || myPoints < finalAmount = (Bid myPoints, addToMemory oldMemory $ newMemory myPoints)
+        | otherwise = (Bid finalAmount, addToMemory oldMemory $ newMemory finalAmount)
 
-        | finalAmount <= minBid && _playerPoints myPoints >= minBid =
-            (Bid minBid, addToMemory gameMem [(show minBid, 0), (show (streaks prevRank currRank), 3), (show currRank, 2), (show interMemory, 4), (show interMemory'', 6)])
+findStreaks :: GameMemory -> [PlayerPoints] -> PlayerId -> Int
+findStreaks oldMemory playerPoints playerId = streaks prevR currR where 
+    prevR :: Int
+    prevR = rank oldMemory
 
-        | _playerPoints myPoints <= minBid || _playerPoints myPoints < finalAmount = 
-            (Bid (_playerPoints myPoints), addToMemory gameMem [(show (_playerPoints myPoints), 0), (show (streaks prevRank currRank), 3), (show currRank, 2), (show interMemory, 4), (show interMemory'', 6)])
-        
-        | otherwise = 
-            (Bid finalAmount, addToMemory gameMem [(show finalAmount, 0), (show (streaks prevRank currRank), 3), (show currRank, 2), (show interMemory, 4), (show interMemory'', 6)])
+    currR :: Int
+    currR = playerPointsToRank playerPoints playerId
 
+    currStreak :: Int
+    currStreak = winStreak oldMemory
 
+    streaks :: Int -> Int -> Int
+    streaks prevRank currRank = if currRank - prevRank > 0 then currStreak + 1 else 0
+
+-- LOOKUP TABLES FOR BASIC STRATEGY -- 
 basicTableHard :: LookUpTable
 basicTableHard = [(21, [Ace .. King], const Stand, "S"),
                   (20, [Ace .. King], const Stand, "S"),
@@ -322,3 +251,57 @@ lookupQ _key [] =  Nothing
 lookupQ key ((x,y,z,a):xyzas)
     | key == x  =  Just (y, z, a)
     | otherwise =  lookupQ key xyzas
+
+-- UTILITY FUNCTIONS TO FIND GAMEMEMORY METRICS -- 
+-- | Converts whatever player points to a ranking system. The more points you have the more, the higher your ranking will be.
+playerPointsToRank :: [PlayerPoints] -> PlayerId -> Int
+playerPointsToRank playerPoints playerId =
+    case elemIndex playerId $ _playerPointsId <$> sortOn _playerPoints playerPoints of
+    Just player -> player + 1
+    Nothing     -> error "Player not found."
+
+-- | Aggregates the playerInfo into number of cards for a certain collection of playerInfo in a ROUND
+playerInfoToLength :: [PlayerInfo]  -> Int
+playerInfoToLength playerInfo = foldr ((+) . length) 0 (playerInfoHand <$> playerInfo)
+
+-- | Helper function that converts a collection of playerInfo into number of cards
+playerInfosToCount :: [PlayerInfo] -> Int
+playerInfosToCount playerInfo = convertHandsToCount $ playerInfoHand <$> playerInfo
+
+-- | Helper function that converts a collection of playerInfo into number of cards, EXCLUDING PLAYERHAND
+playerInfosToCount' :: [PlayerInfo] -> PlayerId -> Int
+playerInfosToCount' playerInfo playerId = 
+    foldr (\pp acc -> if playerId /= _playerInfoId pp then acc + convertHandToCount (playerInfoHand pp) else acc) 0 playerInfo
+
+-- | Helper function that converts a card into a card value, which can be -1, 1 or 0. These cards are based off the Hi-Lo card counting strategy.
+convertCardToCount :: Card -> Int
+convertCardToCount card
+    | getRank card `elem` Ace : [Ten .. King] = -1
+    | getRank card `elem` [Two .. Six] = 1
+    | getRank card `elem` [Seven .. Nine] = 0
+    | otherwise = error "Error in convertCardToCount."
+
+-- | Helper function that converts a particular hand into a total count for the hand based off the Hi-Lo card counting strategy. 
+convertHandToCount :: Hand -> Int
+convertHandToCount hand = sum $ convertCardToCount <$> hand
+
+-- | Helper function that converts multiple hands into a total count for the hand based off the Hi-Lo card counting strategy. 
+convertHandsToCount :: [Hand] -> Int
+convertHandsToCount hands = sum $ convertHandToCount <$> hands
+
+findPoints :: [PlayerPoints] -> PlayerId -> Points 
+findPoints playerPoints playerId = _playerPoints myPoints where
+    myPoints:_ = filter ((playerId == ) . _playerPointsId) playerPoints 
+
+-- UTILITY FUNCTIONS FOR MEMORY --
+-- | A carefully designed and succinct function used to convert old GameMemory into a new memory string based off an array of incoming new data.
+addToMemory :: GameMemory -> [(String, Int)] -> String
+addToMemory oldMemory newData = intercalate "|" $ foldr (\(inf, pos) prev -> change pos inf prev) (sequenceA funcList oldMemory) newData
+
+-- | A function that changes the item at a position of a list by taking in a position, a new item and a list to change as input. 
+change :: Int -> a -> [a] -> [a]
+change position a lst = take position lst ++ a : drop (position + 1) lst
+
+-- | Conversion of string to custom GameMemory data using the parser and getting its result. Here the intricacies of conversion is abstracted away when used in later functions 
+stringToMemory :: String -> GameMemory
+stringToMemory myMemory = getParsedResult $ parse parseMemory myMemory
