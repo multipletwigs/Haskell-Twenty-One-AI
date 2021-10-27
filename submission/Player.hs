@@ -11,7 +11,6 @@ import           TwentyOne.Rules    -- Rules of the game
 import           GHC.Show (Show)
 import           Data.List
 import           TwentyOne.Play (dealerId)
-import          Debug.Trace
 
 -- Memory ADT --
 -- *THINGS TO NOTE* 
@@ -67,7 +66,7 @@ playingStrategy _ _ _ _ _ _ = error "Error in playingStrategy."
 -- PARSING EXTENSION FOR PARSING PLAYER ACTION -- 
 -- Here, the lower case d represents to HIT after double down, capital D represents to STAND
 parseAction :: Parser Char
-parseAction = is 'B' ||| is 'S' ||| is 'H' ||| is 'D' ||| is 'd' ||| is 'I' ||| is 'S' ||| is 'L'
+parseAction = is 'B' ||| is 'S' ||| is 'H' ||| is 'D' ||| is 'd' ||| is 'I' ||| is 'L'
 
 parseActions :: Parser [Char]
 parseActions = list parseAction
@@ -77,7 +76,7 @@ parseActions = list parseAction
 parseDigit :: Parser Char
 parseDigit = is '-' ||| is '0' ||| is '1' ||| is '2' ||| is '3' ||| is '4' ||| is '5' ||| is '6' ||| is '7' ||| is '8' ||| is '9'
 
--- | parseNumber converts the string into an int at the very end using read and fmap
+-- | parseNumber converts the string into an int at the very end using read and fmap for parsers
 parseNumber :: Parser Int
 parseNumber = read <$> list parseDigit
 
@@ -86,20 +85,20 @@ parseNumber = read <$> list parseDigit
 parseMemory :: Parser GameMemory
 parseMemory = do
     bid          <- parseNumber
-    _            <- is '|'
+    is '|'
     actions      <- parseActions
-    _            <- is '|'
+    is '|'
     rank         <- parseNumber
-    _            <- is '|'
+    is '|'
     winStreak    <- parseNumber
-    _            <- is '|'
+    is '|'
     runCount     <- parseNumber
-    _            <- is '|'
+    is '|'
+    currCount    <- parseNumber
+    is '|'
     seen         <- parseNumber
-    _            <- is '|'
-    currSeen     <- parseNumber
-    _            <- is '|'
-    GameMemory bid actions rank winStreak runCount seen currSeen <$> parseNumber
+    is '|'
+    GameMemory bid actions rank winStreak runCount currCount seen <$> parseNumber
 
 -- PARSER EXTENSION FOR OBTAINING PARSED RESULT -- 
 -- Source: Course Notes by Tim Dwyer
@@ -108,7 +107,7 @@ getParsedResult (Result _ res) = res
 getParsedResult (Error e) = error (show e)
 
 -- UTILITY PARSERS -- 
--- Source: Tutorial 11 Code
+-- Source: Tutorial 11 MA_GROUP 6 GROUP ANSWERS
 list :: Parser a -> Parser [a]
 list p1 = list1 p1 ||| pure []
 
@@ -176,10 +175,6 @@ basicAction :: Maybe ([Rank] , Points -> Action, String) -> Rank -> (Points -> A
 basicAction Nothing _ = (const Hit, "H")
 basicAction (Just (ranks, action, act)) oppHand =
     if oppHand `elem` ranks then (action, act) else (const Hit, act)
-
--- | removeDealer is a function that removes dealerInformation from playerInfo so that it does not interfere with our calculations 
-removeDealer :: [PlayerInfo] -> [PlayerInfo] -- This is used to remove dealer information from [PlayerInfo]
-removeDealer = filter ((dealerId /= ) . _playerInfoId)
 
 -- BIDDING STRATEGY IMPLEMENTATION -- 
 biddingStrategy :: [PlayerPoints] -> PlayerId -> [PlayerInfo] -> GameMemory -> (Action, String)
@@ -290,15 +285,18 @@ basicTableSplit rank = case rank of
 
 -- UTILITY FUNCTIONS FOR LOOKUP TABLE --
 -- A modified lookUp function based on the lookUp function from Hoogle where we lookUp for list of tuples with 4 items in it instead
--- 
-lookupQ :: (Eq a) => a -> [(a,b,c,d)] -> Maybe (b, c, d)
+-- Referrence: https://hackage.haskell.org/package/base-4.15.0.0/docs/Prelude.html#v:lookup
+lookupQ :: (Eq a) => a -> [(a,b,c,d)] -> Maybe (b, c, d) 
 lookupQ _key [] =  Nothing
 lookupQ key ((x,y,z,a):xyzas)
     | key == x  =  Just (y, z, a)
     | otherwise =  lookupQ key xyzas
 
+-- UTILITY FUNCTIONS TO FIND GAMEMEMORY METRICS --
 
--- UTILITY FUNCTIONS TO FIND GAMEMEMORY METRICS -- 
+-- | removeDealer is a function that removes dealerInformation from playerInfo so that it does not interfere with our calculations 
+removeDealer :: [PlayerInfo] -> [PlayerInfo] -- This is used to remove dealer information from [PlayerInfo]
+removeDealer = filter ((dealerId /= ) . _playerInfoId)
 
 -- | Converts whatever player points to a ranking system. The more points you have the more, the higher your ranking will be.
 playerPointsToRank :: [PlayerPoints] -> PlayerId -> Int
@@ -314,10 +312,8 @@ playerInfosToLength playerInfo Nothing = foldr ((+) . length) 0 (playerInfoHand 
 
 -- | Aggregates a collection of playerInfo into card Hi-Lo count depending if playerId should be included in the count or not  
 playerInfosToCount :: [PlayerInfo] -> Maybe PlayerId -> Int
-playerInfosToCount playerInfo (Just playerId) =
-    foldr (\pp acc -> if playerId /= _playerInfoId pp then acc + convertHandToCount (playerInfoHand pp) else acc) 0 playerInfo
-playerInfosToCount playerInfo Nothing =
-    foldr ((+) . convertHandToCount . playerInfoHand) 0 playerInfo
+playerInfosToCount playerInfo (Just playerId) = foldr (\pp acc -> if playerId /= _playerInfoId pp then acc + convertHandToCount (playerInfoHand pp) else acc) 0 playerInfo
+playerInfosToCount playerInfo Nothing = foldr ((+) . convertHandToCount . playerInfoHand) 0 playerInfo
 
 -- | Helper function that converts a card into a card value, which can be -1, 1 or 0. These cards are based off the Hi-Lo card counting strategy.
 convertCardToCount :: Card -> Int
@@ -356,7 +352,7 @@ stringToMemory myMemory = getParsedResult $ parse parseMemory myMemory
 
 -- !Note: Math behind card counting
 -- In order to obtain the running count of a card game, we need to recognize the fact that the playing round has player information complement to the player information to the bidding round. 
--- VERY PLAYING ROUND
+-- VERY FIRST PLAYING ROUND
 -- EXAMPLE FOR PLAYER 1, in this example, player 1 is the fourth player: 
 -- Playing Round -> ["7" [],"9" [],"4" [],"2" [],"0" [],"8" [],"1" [],"6" [DJ,H5,DK],"3" [DT,DA,C7,C2],"5" [C8,SJ,S6,S3]]
 -- Memory -> "10|B|0|0|0|0|0|0", here count and cards seen is still 0 from very first bidding round
