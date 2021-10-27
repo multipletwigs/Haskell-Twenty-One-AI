@@ -83,19 +83,19 @@ parseNumber = read <$> list parseDigit
 -- PARSER EXTENSION FOR MEMORY PARSER --
 parseMemory :: Parser GameMemory
 parseMemory = do
-    bid          <- parseNumber  
+    bid          <- parseNumber
     _            <- is '|'
-    actions      <- parseActions 
+    actions      <- parseActions
     _            <- is '|'
-    rank         <- parseNumber  
+    rank         <- parseNumber
     _            <- is '|'
-    winStreak    <- parseNumber 
+    winStreak    <- parseNumber
     _            <- is '|'
-    count        <- parseNumber  
+    count        <- parseNumber
     _            <- is '|'
-    seen         <- parseNumber  
+    seen         <- parseNumber
     _            <- is '|'
-    currSeen      <- parseNumber  
+    currSeen      <- parseNumber
     _            <- is '|'
     GameMemory bid actions rank winStreak count seen currSeen <$> parseNumber
 
@@ -113,22 +113,22 @@ list1 p = p >>= (\p' -> list p >>= (\p''-> pure (p':p'')))
 
 -- BASIC STRATEGY IMPLEMENTATION --
 basicStrategyHardTotal :: Card -> Points -> [PlayerInfo] -> GameMemory -> Hand ->  PlayerId -> (Action, String)
-basicStrategyHardTotal (Card _ rank) myPoints playerInfo gameMemory myHand playerId = findAction where
+basicStrategyHardTotal (Card _ rank) myPoints playerInfo oldMemory myHand playerId = findAction where
 
     prevBid :: Int
-    prevBid = bid gameMemory
+    prevBid = bid oldMemory
 
-    interMemory :: Int
-    interMemory = cardsSeen gameMemory + playerInfoToLength playerInfo 
+    roundCardsSeen :: Int
+    roundCardsSeen = cardsSeen oldMemory + playerInfosToLength playerInfo Nothing 
 
-    interMemory' :: Int
-    interMemory' = count gameMemory + playerInfosToCount' playerInfo playerId
+    roundCount :: Int
+    roundCount = count oldMemory + playerInfosToCount playerInfo Nothing
 
     actionsDone :: String
-    actionsDone = actions gameMemory
+    actionsDone = actions oldMemory
 
     newMemory :: [(String, Int)] -> String
-    newMemory = addToMemory gameMemory
+    newMemory = addToMemory oldMemory
 
     tableUsed :: LookUpTable
     tableUsed = determineTable myHand myPoints prevBid
@@ -137,9 +137,9 @@ basicStrategyHardTotal (Card _ rank) myPoints playerInfo gameMemory myHand playe
     finalBasic = basicAction (lookupQ (handCalc myHand) tableUsed) rank
 
     findAction
-        | last actionsDone == 'D' = (Hit, newMemory [("d", 1), (show interMemory', 5), (show interMemory, 7)])
-        | last actionsDone == 'd' = (Stand, newMemory [("S", 1), (show interMemory', 5),(show interMemory, 7)])
-        | otherwise = (fst finalBasic prevBid, newMemory [(snd finalBasic, 1), (show interMemory', 5),(show interMemory, 7)])
+        | last actionsDone == 'D' = (Hit, newMemory [("d", 1), (show roundCount, 5), (show roundCardsSeen, 7)])
+        | last actionsDone == 'd' = (Stand, newMemory [("S", 1), (show roundCount, 5),(show roundCardsSeen, 7)])
+        | otherwise = (fst finalBasic prevBid, newMemory [(snd finalBasic, 1), (show roundCount, 5),(show roundCardsSeen, 7)])
 
 -- | determineTable helps us find which table that we are supposed to use from the 3 different lookUp Tables. 
 -- Understand that there are many conditions 
@@ -163,20 +163,20 @@ basicAction (Just (ranks, action, act)) oppHand =
 biddingStrategy :: [PlayerPoints] -> PlayerId -> [PlayerInfo] -> GameMemory -> (Action, String)
 biddingStrategy playerPoints playerId playerInfo oldMemory = finalBid where
 
-    interMemory'' :: Int
-    interMemory'' = mod (currCardS oldMemory + cardsSeen oldMemory + playerInfoToLength playerInfo) 156
+    totalCardsSeen :: Int
+    totalCardsSeen = mod (currCardS oldMemory + cardsSeen oldMemory + playerInfosToLength playerInfo (Just playerId)) (52 * numDecks)
 
     decksLeft :: Int
-    decksLeft = div 156 (1 + interMemory'')
+    decksLeft = numDecks - safeDiv totalCardsSeen 52
 
     trueCount :: Int
-    trueCount = div (currCount oldMemory + playerInfosToCount playerInfo) decksLeft
+    trueCount = safeDiv (currCount oldMemory + playerInfosToCount playerInfo (Just playerId)) decksLeft
 
-    currRank :: Int 
+    currRank :: Int
     currRank = playerPointsToRank playerPoints playerId
 
     myPoints :: Points
-    myPoints = findPoints playerPoints playerId 
+    myPoints = findPoints playerPoints playerId
 
     totalStreak :: Int
     totalStreak = findStreaks oldMemory playerPoints playerId
@@ -185,7 +185,7 @@ biddingStrategy playerPoints playerId playerInfo oldMemory = finalBid where
     finalAmount = trueCount * minBid + totalStreak * 2
 
     newMemory :: Int -> [(String, Int)]
-    newMemory newBid = [(show newBid, 0), ("B", 1),(show currRank, 2),(show totalStreak, 3), (show trueCount, 4),(show interMemory'', 6)]
+    newMemory newBid = [(show newBid, 0), ("B", 1),(show currRank, 2),(show totalStreak, 3), (show trueCount, 4),(show totalCardsSeen, 6)]
 
     finalBid
         | finalAmount >= maxBid && myPoints >= maxBid = (Bid maxBid, addToMemory oldMemory $ newMemory maxBid)
@@ -193,8 +193,12 @@ biddingStrategy playerPoints playerId playerInfo oldMemory = finalBid where
         | myPoints <= minBid || myPoints < finalAmount = (Bid myPoints, addToMemory oldMemory $ newMemory myPoints)
         | otherwise = (Bid finalAmount, addToMemory oldMemory $ newMemory finalAmount)
 
+safeDiv :: Int -> Int -> Int
+safeDiv _ 0 = 1
+safeDiv num denom = num `div` denom
+
 findStreaks :: GameMemory -> [PlayerPoints] -> PlayerId -> Int
-findStreaks oldMemory playerPoints playerId = streaks prevR currR where 
+findStreaks oldMemory playerPoints playerId = streaks prevR currR where
     prevR :: Int
     prevR = rank oldMemory
 
@@ -244,7 +248,6 @@ basicTableSplit rank = case rank of
             (6,  [Two .. Seven],     Split, "L"),
             (4,  [Two .. Seven],     Split, "L")]
 
-
 -- UTILITY FUNCTIONS FOR LOOKUP TABLE --
 lookupQ :: (Eq a) => a -> [(a,b,c,d)] -> Maybe (b, c, d)
 lookupQ _key [] =  Nothing
@@ -261,17 +264,16 @@ playerPointsToRank playerPoints playerId =
     Nothing     -> error "Player not found."
 
 -- | Aggregates the playerInfo into number of cards for a certain collection of playerInfo in a ROUND
-playerInfoToLength :: [PlayerInfo]  -> Int
-playerInfoToLength playerInfo = foldr ((+) . length) 0 (playerInfoHand <$> playerInfo)
-
--- | Helper function that converts a collection of playerInfo into number of cards
-playerInfosToCount :: [PlayerInfo] -> Int
-playerInfosToCount playerInfo = convertHandsToCount $ playerInfoHand <$> playerInfo
+playerInfosToLength :: [PlayerInfo]  -> Maybe PlayerId -> Int
+playerInfosToLength playerInfo (Just playerId) = foldr (\pp acc -> if playerId /= _playerInfoId pp then acc + 1 else acc) 0 playerInfo
+playerInfosToLength playerInfo Nothing = foldr ((+) . length) 0 (playerInfoHand <$> playerInfo)
 
 -- | Helper function that converts a collection of playerInfo into number of cards, EXCLUDING PLAYERHAND
-playerInfosToCount' :: [PlayerInfo] -> PlayerId -> Int
-playerInfosToCount' playerInfo playerId = 
+playerInfosToCount :: [PlayerInfo] -> Maybe PlayerId -> Int
+playerInfosToCount playerInfo (Just playerId) =
     foldr (\pp acc -> if playerId /= _playerInfoId pp then acc + convertHandToCount (playerInfoHand pp) else acc) 0 playerInfo
+playerInfosToCount playerInfo Nothing =
+    foldr ((+) . convertHandToCount . playerInfoHand) 0 playerInfo
 
 -- | Helper function that converts a card into a card value, which can be -1, 1 or 0. These cards are based off the Hi-Lo card counting strategy.
 convertCardToCount :: Card -> Int
@@ -289,9 +291,10 @@ convertHandToCount hand = sum $ convertCardToCount <$> hand
 convertHandsToCount :: [Hand] -> Int
 convertHandsToCount hands = sum $ convertHandToCount <$> hands
 
-findPoints :: [PlayerPoints] -> PlayerId -> Points 
+-- | Helper function that finds a players current points
+findPoints :: [PlayerPoints] -> PlayerId -> Points
 findPoints playerPoints playerId = _playerPoints myPoints where
-    myPoints:_ = filter ((playerId == ) . _playerPointsId) playerPoints 
+    myPoints:_ = filter ((playerId == ) . _playerPointsId) playerPoints
 
 -- UTILITY FUNCTIONS FOR MEMORY --
 -- | A carefully designed and succinct function used to convert old GameMemory into a new memory string based off an array of incoming new data.
